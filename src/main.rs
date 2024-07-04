@@ -1,3 +1,4 @@
+use ::rand::prelude::*;
 use macroquad::prelude::*;
 
 struct Pos {
@@ -30,7 +31,6 @@ impl Game {
         let mut matrix: CellMatrix = vec![];
         let num_of_rows = screen_height() / cell_size;
         let num_of_cols = screen_width() / cell_size;
-
         (0..num_of_rows as i32).into_iter().for_each(|row_idx| {
             let cells: Vec<Cell> = (0..num_of_cols as i32)
                 .into_iter()
@@ -39,7 +39,9 @@ impl Game {
                         x: col_idx as f32 * cell_size,
                         y: row_idx as f32 * cell_size,
                     },
-                    is_dead: false,
+                    // 1 percent chance of cell being alive
+                    // or 99 percent chances of cell being dead
+                    is_dead: thread_rng().gen_range(0..101) <= 99,
                 })
                 .collect();
             matrix.push(cells);
