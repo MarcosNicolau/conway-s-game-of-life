@@ -53,18 +53,23 @@ impl Game {
     pub async fn start(&mut self) {
         loop {
             clear_background(BLACK);
-            self.cells.iter().for_each(|el| {
-                el.iter().for_each(|el| {
-                    draw_rectangle(
-                        el.pos.x,
-                        el.pos.y,
-                        self.cell_size,
-                        self.cell_size,
-                        if el.is_dead { BLACK } else { WHITE },
-                    )
-                })
-            });
+            self.draw_cells();
+            self.cells = self.get_new_generation();
             next_frame().await;
+        }
+    }
+
+    fn draw_cells(&self) {
+        for cells in self.cells.iter() {
+            cells.iter().for_each(|cell| {
+                draw_rectangle(
+                    cell.pos.x,
+                    cell.pos.y,
+                    self.cell_size,
+                    self.cell_size,
+                    if cell.is_dead { BLACK } else { WHITE },
+                )
+            });
         }
     }
 
