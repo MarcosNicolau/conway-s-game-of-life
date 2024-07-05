@@ -169,3 +169,45 @@ impl Game {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    //TODO finish this test
+    #[test]
+    fn should_get_next_generation() {}
+
+    #[test]
+    fn should_get_neighbors_count() {
+        let seeder: Seeder = |row_idx, col_idx| match row_idx {
+            50 if (19..22).contains(&col_idx) => false,
+            _ => true,
+        };
+        let game = Game::new(Screen::default(), Some(seeder));
+        assert_eq!(game.get_neighbors_count(50, 20), 2);
+    }
+
+    #[test]
+    fn should_generate_cells_accordingly() {
+        // if the cells size is 600, then there should be 1 col and 1 row
+        let cells_matrix = Game::generate_cells(&Screen::default(), 600.0, |_, _| false);
+        assert_eq!(
+            cells_matrix,
+            vec![vec![Cell {
+                pos: Pos { x: 0.0, y: 0.0 },
+                is_dead: false
+            }]]
+        )
+    }
+    #[test]
+    fn should_map_cell_state_to_1() {
+        let game = Game::new(Screen::default(), Some(|_, _| false));
+        assert_eq!(game.cell_state_to_number(2, 2), 1);
+    }
+    #[test]
+    fn should_map_cell_state_to_0() {
+        let game = Game::new(Screen::default(), Some(|_, _| true));
+        assert_eq!(game.cell_state_to_number(2, 2), 0);
+    }
+}
