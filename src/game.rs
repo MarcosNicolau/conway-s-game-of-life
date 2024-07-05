@@ -1,38 +1,61 @@
 use ::rand::prelude::*;
 use macroquad::prelude::*;
+use miniquad::window::set_window_size;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 struct Pos {
     x: f32,
     y: f32,
 }
+#[derive(PartialEq, Debug)]
 struct Cell {
     pos: Pos,
     is_dead: bool,
 }
 
+pub struct Screen {
+    height: u32,
+    width: u32,
+}
+
+impl Default for Screen {
+    fn default() -> Self {
+        Self {
+            width: 800,
+            height: 600,
+        }
+    }
+}
+
 type CellMatrix = Vec<Vec<Cell>>;
 
 pub struct Game {
+    screen: Screen,
     cells: CellMatrix,
     cell_size: f32,
 }
 
+pub type Seeder = fn(i32, i32) -> bool;
 impl Game {
-    pub fn new() -> Self {
+    pub fn new(screen: Screen, seeder: Option<Seeder>) -> Self {
         let cell_size = 5.0;
         Self {
             cell_size,
-            cells: Game::generate_cells(cell_size),
+            cells: Game::generate_cells(
+                &screen,
+                cell_size,
+                seeder.unwrap_or(|_, _| thread_rng().gen_range(0..101) <= 99),
+            ),
+            screen,
         }
     }
 
-    fn generate_cells(cell_size: f32) -> CellMatrix {
+    fn generate_cells(screen: &Screen, cell_size: f32, seeder: Seeder) -> CellMatrix {
         let mut matrix: CellMatrix = vec![];
-        let num_of_rows = screen_height() / cell_size;
-        let num_of_cols = screen_width() / cell_size;
-        (0..num_of_rows as i32).into_iter().for_each(|row_idx| {
-            let cells: Vec<Cell> = (0..num_of_cols as i32)
+        let num_of_rows: i32 = (screen.height as f32 / cell_size) as i32;
+        let num_of_cols = (screen.width as f32 / cell_size) as i32;
+        (0..num_of_rows).into_iter().for_each(|row_idx| {
+            let cells: Vec<Cell> = (0..num_of_cols)
                 .into_iter()
                 .map(|col_idx| Cell {
                     pos: Pos {
@@ -41,7 +64,7 @@ impl Game {
                     },
                     // 1 percent chance of cell being alive
                     // or 99 percent chances of cell being dead
-                    is_dead: thread_rng().gen_range(0..101) <= 99,
+                    is_dead: seeder(row_idx, col_idx),
                 })
                 .collect();
             matrix.push(cells);
@@ -51,6 +74,7 @@ impl Game {
     }
 
     pub async fn start(&mut self) {
+        self.setup();
         loop {
             clear_background(BLACK);
             self.draw_cells();
@@ -132,13 +156,15 @@ impl Game {
             .map_or(0, |cell| if cell.is_dead { 0 } else { 1 })
     }
 
-    fn conf() -> Conf {
+    pub fn setup(&self) {
+        set_window_size(self.screen.width, self.screen.height);
+    }
+
+    pub fn conf() -> Conf {
         Conf {
             window_title: "Conway's Game of Life".to_owned(),
             fullscreen: false,
             window_resizable: false,
-            window_height: 600,
-            window_width: 800,
             ..Default::default()
         }
     }
