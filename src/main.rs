@@ -1,11 +1,11 @@
 use ::rand::prelude::*;
 use macroquad::prelude::*;
 
+#[derive(Copy, Clone)]
 struct Pos {
     x: f32,
     y: f32,
 }
-
 struct Cell {
     pos: Pos,
     is_dead: bool,
@@ -66,6 +66,27 @@ impl Game {
             });
             next_frame().await;
         }
+    }
+
+    fn get_new_generation(&self) -> CellMatrix {
+        self.cells
+            .iter()
+            .enumerate()
+            .map(|(row_idx, row)| {
+                row.iter()
+                    .enumerate()
+                    .map(|(col_idx, col)| {
+                        let count = self.get_neighbors_count(row_idx, col_idx);
+                        let is_dead = match count {
+                            3 => false,
+                            2..=3 => false,
+                            _ => true,
+                        };
+                        Cell { is_dead, ..*col }
+                    })
+                    .collect()
+            })
+            .collect()
     }
 
     fn get_neighbors_count(&self, row_idx: usize, col_idx: usize) -> i32 {
