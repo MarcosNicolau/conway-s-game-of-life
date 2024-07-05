@@ -68,6 +68,44 @@ impl Game {
         }
     }
 
+    fn get_neighbors_count(&self, row_idx: usize, col_idx: usize) -> i32 {
+        let cells: &Vec<Vec<Cell>> = &self.cells;
+        let start_row = if row_idx == 0 { 0 } else { row_idx - 1 };
+        let end_row = if row_idx >= cells.len() - 1 {
+            cells.len()
+        } else {
+            row_idx + 2
+        };
+
+        cells[start_row..end_row]
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| {
+                let actual_row_idx = start_row + idx;
+                let mut count = 0;
+
+                count += self.cell_state_to_number(actual_row_idx, col_idx + 1);
+                count += match col_idx {
+                    0 => 0,
+                    _ => self.cell_state_to_number(actual_row_idx, col_idx - 1),
+                };
+                count += match actual_row_idx {
+                    idx if idx == row_idx => 0,
+                    _ => self.cell_state_to_number(actual_row_idx, col_idx),
+                };
+
+                count
+            })
+            .sum()
+    }
+
+    fn cell_state_to_number(&self, row_idx: usize, col_idx: usize) -> i32 {
+        self.cells
+            .get(row_idx)
+            .and_then(|cells| cells.get(col_idx))
+            .map_or(0, |cell| if cell.is_dead { 0 } else { 1 })
+    }
+
     fn conf() -> Conf {
         Conf {
             window_title: "Conway's Game of Life".to_owned(),
