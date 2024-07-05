@@ -126,7 +126,7 @@ impl Game {
     }
 
     fn get_neighbors_count(&self, row_idx: usize, col_idx: usize) -> i32 {
-        let cells: &Vec<Vec<Cell>> = &self.cells;
+        let cells: &CellMatrix = &self.cells;
         let start_row = if row_idx == 0 { 0 } else { row_idx - 1 };
         let end_row = if row_idx >= cells.len() - 1 {
             cells.len()
