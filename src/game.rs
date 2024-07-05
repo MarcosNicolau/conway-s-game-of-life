@@ -2,6 +2,8 @@ use ::rand::prelude::*;
 use macroquad::prelude::*;
 use miniquad::window::set_window_size;
 
+// Structs definitions here
+
 #[derive(Copy, Clone, PartialEq, Debug)]
 struct Pos {
     x: f32,
@@ -35,22 +37,28 @@ pub struct Game {
     cell_size: f32,
 }
 
-pub type Seeder = fn(i32, i32) -> bool;
+pub type Seeder = fn(row_idx: i32, col_idx: i32) -> bool;
+
+pub fn get_random_seeder(percentage: u32) -> Box<dyn Fn(i32, i32) -> bool> {
+    Box::new(move |_, _| thread_rng().gen_range(0..101) <= percentage)
+}
+
 impl Game {
-    pub fn new(screen: Screen, seeder: Option<Seeder>) -> Self {
+    pub fn new(screen: Screen, seeder: impl Fn(i32, i32) -> bool) -> Self {
         let cell_size = 5.0;
+
         Self {
             cell_size,
-            cells: Game::generate_cells(
-                &screen,
-                cell_size,
-                seeder.unwrap_or(|_, _| thread_rng().gen_range(0..101) <= 99),
-            ),
+            cells: Game::generate_cells(&screen, cell_size, seeder),
             screen,
         }
     }
 
-    fn generate_cells(screen: &Screen, cell_size: f32, seeder: Seeder) -> CellMatrix {
+    fn generate_cells(
+        screen: &Screen,
+        cell_size: f32,
+        seeder: impl Fn(i32, i32) -> bool,
+    ) -> CellMatrix {
         let mut matrix: CellMatrix = vec![];
         let num_of_rows: i32 = (screen.height as f32 / cell_size) as i32;
         let num_of_cols = (screen.width as f32 / cell_size) as i32;
@@ -62,8 +70,7 @@ impl Game {
                         x: col_idx as f32 * cell_size,
                         y: row_idx as f32 * cell_size,
                     },
-                    // 1 percent chance of cell being alive
-                    // or 99 percent chances of cell being dead
+
                     is_dead: seeder(row_idx, col_idx),
                 })
                 .collect();
@@ -180,11 +187,11 @@ mod tests {
 
     #[test]
     fn should_get_neighbors_count() {
-        let seeder: Seeder = |row_idx, col_idx| match row_idx {
+        let seeder = |row_idx, col_idx| match row_idx {
             50 if (19..22).contains(&col_idx) => false,
             _ => true,
         };
-        let game = Game::new(Screen::default(), Some(seeder));
+        let game = Game::new(Screen::default(), seeder);
         assert_eq!(game.get_neighbors_count(50, 20), 2);
     }
 
@@ -202,12 +209,12 @@ mod tests {
     }
     #[test]
     fn should_map_cell_state_to_1() {
-        let game = Game::new(Screen::default(), Some(|_, _| false));
+        let game = Game::new(Screen::default(), |_, _| false);
         assert_eq!(game.cell_state_to_number(2, 2), 1);
     }
     #[test]
     fn should_map_cell_state_to_0() {
-        let game = Game::new(Screen::default(), Some(|_, _| true));
+        let game = Game::new(Screen::default(), |_, _| true);
         assert_eq!(game.cell_state_to_number(2, 2), 0);
     }
 }
