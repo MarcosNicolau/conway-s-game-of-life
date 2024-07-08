@@ -2,12 +2,10 @@ use ::rand::prelude::*;
 use macroquad::prelude::*;
 use miniquad::window::set_window_size;
 
-// Structs definitions here
-
 #[derive(Copy, Clone, PartialEq, Debug)]
 struct Pos {
-    x: f32,
-    y: f32,
+    x: i32,
+    y: i32,
 }
 #[derive(PartialEq, Debug)]
 struct Cell {
@@ -34,18 +32,18 @@ type CellMatrix = Vec<Vec<Cell>>;
 pub struct Game {
     screen: Screen,
     cells: CellMatrix,
-    cell_size: f32,
+    cell_size: u32,
 }
 
 pub type Seeder = fn(row_idx: i32, col_idx: i32) -> bool;
 
-pub fn get_random_seeder(percentage: u32) -> Box<dyn Fn(i32, i32) -> bool> {
+pub fn get_random_seeder(percentage: u32) -> Box<dyn Fn(u32, u32) -> bool> {
     Box::new(move |_, _| thread_rng().gen_range(0..101) <= percentage)
 }
 
 impl Game {
-    pub fn new(screen: Screen, seeder: impl Fn(i32, i32) -> bool) -> Self {
-        let cell_size = 5.0;
+    pub fn new(screen: Screen, seeder: impl Fn(u32, u32) -> bool) -> Self {
+        let cell_size = 5;
 
         Self {
             cell_size,
@@ -56,19 +54,19 @@ impl Game {
 
     fn generate_cells(
         screen: &Screen,
-        cell_size: f32,
-        seeder: impl Fn(i32, i32) -> bool,
+        cell_size: u32,
+        seeder: impl Fn(u32, u32) -> bool,
     ) -> CellMatrix {
         let mut matrix: CellMatrix = vec![];
-        let num_of_rows: i32 = (screen.height as f32 / cell_size) as i32;
-        let num_of_cols = (screen.width as f32 / cell_size) as i32;
+        let num_of_rows = screen.height / cell_size;
+        let num_of_cols = screen.width / cell_size;
         (0..num_of_rows).into_iter().for_each(|row_idx| {
             let cells: Vec<Cell> = (0..num_of_cols)
                 .into_iter()
                 .map(|col_idx| Cell {
                     pos: Pos {
-                        x: col_idx as f32 * cell_size,
-                        y: row_idx as f32 * cell_size,
+                        x: (col_idx * cell_size) as i32,
+                        y: (row_idx * cell_size) as i32,
                     },
 
                     is_dead: seeder(row_idx, col_idx),
@@ -94,10 +92,10 @@ impl Game {
         for cells in self.cells.iter() {
             cells.iter().for_each(|cell| {
                 draw_rectangle(
-                    cell.pos.x,
-                    cell.pos.y,
-                    self.cell_size,
-                    self.cell_size,
+                    cell.pos.x as f32,
+                    cell.pos.y as f32,
+                    self.cell_size as f32,
+                    self.cell_size as f32,
                     if cell.is_dead { BLACK } else { WHITE },
                 )
             });
@@ -198,11 +196,11 @@ mod tests {
     #[test]
     fn should_generate_cells_accordingly() {
         // if the cells size is 600, then there should be 1 col and 1 row
-        let cells_matrix = Game::generate_cells(&Screen::default(), 600.0, |_, _| false);
+        let cells_matrix = Game::generate_cells(&Screen::default(), 600, |_, _| false);
         assert_eq!(
             cells_matrix,
             vec![vec![Cell {
-                pos: Pos { x: 0.0, y: 0.0 },
+                pos: Pos { x: 0, y: 0 },
                 is_dead: false
             }]]
         )
