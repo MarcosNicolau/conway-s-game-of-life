@@ -37,6 +37,8 @@ type CellMatrix = Vec<Vec<Cell>>;
 struct GameState {
     speed_in_ms: f32,
     is_paused: bool,
+    gen_number: i32,
+    alive_cells_number: i32,
 }
 
 pub struct Game {
@@ -61,6 +63,8 @@ impl Game {
             cells: Game::generate_cells(&screen, cell_size, seeder),
             screen,
             state: GameState {
+                alive_cells_number: 0,
+                gen_number: 0,
                 speed_in_ms: 10.,
                 is_paused: true,
             },
@@ -146,26 +150,46 @@ impl Game {
                 exit(0)
             }
         });
+        draw_text(
+            &format!("Alive cells: {}", self.state.alive_cells_number),
+            20.,
+            20.,
+            20.,
+            WHITE,
+        );
+        draw_text(
+            &format!("Gen number: {}", self.state.gen_number),
+            20.,
+            40.,
+            20.,
+            WHITE,
+        );
     }
 
-    fn get_new_generation(&self) -> CellMatrix {
+    fn get_new_generation(&mut self) -> CellMatrix {
         let mut new_gen: CellMatrix = vec![];
+        let mut alive_cells_count = 0;
 
         for (row_idx, row) in self.cells.iter().enumerate() {
             let row = row
                 .iter()
                 .enumerate()
-                .map(|(col_idx, cell)| Cell {
-                    is_dead: Self::apply_cell_rules(
+                .map(|(col_idx, cell)| {
+                    let is_dead = Self::apply_cell_rules(
                         self.get_neighbors_count(row_idx, col_idx),
                         cell.is_dead,
-                    ),
-                    ..*cell
+                    );
+                    if !is_dead {
+                        alive_cells_count += 1;
+                    }
+                    Cell { is_dead, ..*cell }
                 })
                 .collect();
+
             new_gen.push(row);
         }
-
+        self.state.alive_cells_number = alive_cells_count;
+        self.state.gen_number += 1;
         new_gen
     }
 
