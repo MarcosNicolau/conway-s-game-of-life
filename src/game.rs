@@ -102,6 +102,7 @@ impl Game {
         loop {
             clear_background(BLACK);
             self.draw_ui();
+            self.draw_grid();
             self.draw_cells();
             if !self.state.is_paused {
                 self.cells = self.get_new_generation();
@@ -122,6 +123,21 @@ impl Game {
                     WHITE,
                 )
             });
+        }
+    }
+
+    fn draw_grid(&self) {
+        let num_of_rows = self.screen.height / self.cell_size;
+        let num_of_cols = self.screen.width / self.cell_size;
+
+        for idx in 0..=num_of_rows {
+            let y = (idx * self.cell_size) as f32;
+            draw_line(0.0, y, self.screen.width as f32, y, 1.0, GRAY);
+        }
+
+        for idx in 0..=num_of_cols {
+            let x = (idx * self.cell_size) as f32;
+            draw_line(x, 0.0, x, self.screen.height as f32, 1.0, GRAY);
         }
     }
 
