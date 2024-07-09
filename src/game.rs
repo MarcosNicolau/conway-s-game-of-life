@@ -5,7 +5,7 @@ use macroquad::{
     ui::{root_ui, widgets},
 };
 use miniquad::window::set_window_size;
-use std::{ops::Range, thread::sleep, time::Duration};
+use std::{ops::Range, process::exit, thread::sleep, time::Duration};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 struct Pos {
@@ -124,7 +124,7 @@ impl Game {
     fn draw_ui(&mut self) {
         widgets::Window::new(
             100,
-            vec2(0., self.screen.height as f32 - 100.),
+            vec2(0., self.screen.height as f32 - 120.),
             vec2(self.screen.width as f32, 100.),
         )
         .label("Config")
@@ -140,6 +140,10 @@ impl Game {
                 },
             ) {
                 self.state.is_paused = !self.state.is_paused;
+            }
+
+            if ui.button(vec2(self.screen.width as f32 / 2. - 20., 45.), "Exit ") {
+                exit(0)
             }
         });
     }
