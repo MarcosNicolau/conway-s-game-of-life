@@ -1,4 +1,3 @@
-use ::rand::prelude::*;
 use macroquad::{
     hash,
     prelude::*,
@@ -35,8 +34,9 @@ impl Default for Screen {
 type CellMatrix = Vec<Vec<Cell>>;
 
 struct GameState {
-    speed_in_ms: f32,
     is_paused: bool,
+    game_has_started: bool,
+    speed_in_ms: f32,
     gen_number: i32,
     alive_cells_number: i32,
 }
@@ -48,14 +48,10 @@ pub struct Game {
     state: GameState,
 }
 
-pub type Seeder = fn(row_idx: i32, col_idx: i32) -> bool;
-
-pub fn get_random_seeder(percentage: u32) -> Box<dyn Fn(u32, u32) -> bool> {
-    Box::new(move |_, _| thread_rng().gen_range(0..101) <= percentage)
-}
+pub type Seeder = fn(row_idx: u32, col_idx: u32) -> bool;
 
 impl Game {
-    pub fn new(screen: Screen, seeder: impl Fn(u32, u32) -> bool) -> Self {
+    pub fn new(screen: Screen, seeder: Option<Seeder>) -> Self {
         let cell_size = 5;
 
         Self {
@@ -63,6 +59,7 @@ impl Game {
             cells: Game::generate_cells(&screen, cell_size, seeder),
             screen,
             state: GameState {
+                game_has_started: false,
                 alive_cells_number: 0,
                 gen_number: 0,
                 speed_in_ms: 10.,
@@ -71,11 +68,7 @@ impl Game {
         }
     }
 
-    fn generate_cells(
-        screen: &Screen,
-        cell_size: u32,
-        seeder: impl Fn(u32, u32) -> bool,
-    ) -> CellMatrix {
+    fn generate_cells(screen: &Screen, cell_size: u32, seeder: Option<Seeder>) -> CellMatrix {
         let mut matrix: CellMatrix = vec![];
         let num_of_rows = screen.height / cell_size;
         let num_of_cols = screen.width / cell_size;
@@ -87,7 +80,7 @@ impl Game {
                         y: (row * cell_size) as i32,
                     },
 
-                    is_dead: seeder(row, col_idx),
+                    is_dead: seeder.unwrap_or(|_, _| true)(row, col_idx),
                 })
                 .collect();
             matrix.push(cells);
@@ -101,6 +94,25 @@ impl Game {
 
         loop {
             clear_background(BLACK);
+            if !self.state.game_has_started {
+                draw_text(
+                    "Paint the cells",
+                    self.screen.width as f32 / 2.0
+                        - measure_text("Paint the cells", None, 50, 1.).width / 2.0,
+                    self.screen.height as f32 / 2.0 - 50.0 / 2.0,
+                    50.0,
+                    WHITE,
+                );
+                draw_text(
+                    "and press start",
+                    self.screen.width as f32 / 2.0
+                        - measure_text("and press start", None, 30, 1.).width / 2.0,
+                    self.screen.height as f32 / 2.0 - 30.0 / 2.0 + 20.,
+                    30.0,
+                    WHITE,
+                );
+                self.show_paint_cells();
+            }
             self.draw_ui();
             self.draw_grid();
             self.draw_cells();
@@ -109,6 +121,23 @@ impl Game {
                 sleep(Duration::from_millis(self.state.speed_in_ms as u64));
             }
             next_frame().await;
+        }
+    }
+
+    fn show_paint_cells(&mut self) {
+        if is_mouse_button_pressed(MouseButton::Left) {
+            let mouse_pos = mouse_position();
+
+            let cell_x = (mouse_pos.0 / self.cell_size as f32) as usize;
+            let cell_y = (mouse_pos.1 / self.cell_size as f32) as usize;
+
+            if let Some(cell) = self
+                .cells
+                .get_mut(cell_y)
+                .and_then(|row| row.get_mut(cell_x))
+            {
+                cell.is_dead = !cell.is_dead;
+            }
         }
     }
 
@@ -160,6 +189,7 @@ impl Game {
                 },
             ) {
                 self.state.is_paused = !self.state.is_paused;
+                self.state.game_has_started = true;
             }
 
             if ui.button(vec2(self.screen.width as f32 / 2. - 20., 45.), "Exit ") {
@@ -170,14 +200,14 @@ impl Game {
             &format!("Alive cells: {}", self.state.alive_cells_number),
             20.,
             20.,
-            20.,
+            30.,
             WHITE,
         );
         draw_text(
             &format!("Gen number: {}", self.state.gen_number),
             20.,
-            40.,
-            20.,
+            45.,
+            30.,
             WHITE,
         );
     }
@@ -273,14 +303,14 @@ mod tests {
             50 if (19..22).contains(&col_idx) => false,
             _ => true,
         };
-        let game = Game::new(Screen::default(), seeder);
+        let game = Game::new(Screen::default(), Some(seeder));
         assert_eq!(game.get_neighbors_count(50, 20), 2);
     }
 
     #[test]
     fn should_generate_cells_accordingly() {
         // if the cells size is 600, then there should be 1 col and 1 row
-        let cells_matrix = Game::generate_cells(&Screen::default(), 600, |_, _| false);
+        let cells_matrix = Game::generate_cells(&Screen::default(), 600, Some(|_, _| false));
         assert_eq!(
             cells_matrix,
             vec![vec![Cell {
@@ -292,13 +322,13 @@ mod tests {
 
     #[test]
     fn should_map_cell_state_to_1() {
-        let game = Game::new(Screen::default(), |_, _| false);
+        let game = Game::new(Screen::default(), Some(|_, _| false));
         assert_eq!(game.cell_state_to_number(2, 2), 1);
     }
 
     #[test]
     fn should_map_cell_state_to_0() {
-        let game = Game::new(Screen::default(), |_, _| true);
+        let game = Game::new(Screen::default(), Some(|_, _| true));
         assert_eq!(game.cell_state_to_number(2, 2), 0);
     }
 }
