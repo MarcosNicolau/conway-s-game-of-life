@@ -1,6 +1,11 @@
 use ::rand::prelude::*;
-use macroquad::prelude::*;
+use macroquad::{
+    hash,
+    prelude::*,
+    ui::{root_ui, widgets},
+};
 use miniquad::window::set_window_size;
+use std::{ops::Range, thread::sleep, time::Duration};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 struct Pos {
@@ -29,10 +34,16 @@ impl Default for Screen {
 
 type CellMatrix = Vec<Vec<Cell>>;
 
+struct GameState {
+    speed_in_ms: f32,
+    is_paused: bool,
+}
+
 pub struct Game {
     screen: Screen,
     cells: CellMatrix,
     cell_size: u32,
+    state: GameState,
 }
 
 pub type Seeder = fn(row_idx: i32, col_idx: i32) -> bool;
@@ -49,6 +60,10 @@ impl Game {
             cell_size,
             cells: Game::generate_cells(&screen, cell_size, seeder),
             screen,
+            state: GameState {
+                speed_in_ms: 10.,
+                is_paused: true,
+            },
         }
     }
 
@@ -79,10 +94,15 @@ impl Game {
 
     pub async fn start(&mut self) {
         self.setup();
+
         loop {
             clear_background(BLACK);
+            self.draw_ui();
             self.draw_cells();
-            self.cells = self.get_new_generation();
+            if !self.state.is_paused {
+                self.cells = self.get_new_generation();
+                sleep(Duration::from_millis(self.state.speed_in_ms as u64));
+            }
             next_frame().await;
         }
     }
@@ -99,6 +119,29 @@ impl Game {
                 )
             });
         }
+    }
+
+    fn draw_ui(&mut self) {
+        widgets::Window::new(
+            100,
+            vec2(0., self.screen.height as f32 - 100.),
+            vec2(self.screen.width as f32, 100.),
+        )
+        .label("Config")
+        .ui(&mut *root_ui(), |ui| {
+            let range: Range<f32> = 0.0..100.0;
+            ui.slider(hash!(), "speed in ms", range, &mut self.state.speed_in_ms);
+            if ui.button(
+                vec2(self.screen.width as f32 / 2. - 20., 20.),
+                if self.state.is_paused {
+                    "Start"
+                } else {
+                    "Pause"
+                },
+            ) {
+                self.state.is_paused = !self.state.is_paused;
+            }
+        });
     }
 
     fn get_new_generation(&self) -> CellMatrix {
