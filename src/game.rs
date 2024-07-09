@@ -60,20 +60,19 @@ impl Game {
         let mut matrix: CellMatrix = vec![];
         let num_of_rows = screen.height / cell_size;
         let num_of_cols = screen.width / cell_size;
-        (0..num_of_rows).into_iter().for_each(|row_idx| {
+        for row in 0..num_of_rows {
             let cells: Vec<Cell> = (0..num_of_cols)
-                .into_iter()
                 .map(|col_idx| Cell {
                     pos: Pos {
                         x: (col_idx * cell_size) as i32,
-                        y: (row_idx * cell_size) as i32,
+                        y: (row * cell_size) as i32,
                     },
 
-                    is_dead: seeder(row_idx, col_idx),
+                    is_dead: seeder(row, col_idx),
                 })
                 .collect();
             matrix.push(cells);
-        });
+        }
 
         return matrix;
     }
@@ -90,74 +89,72 @@ impl Game {
 
     fn draw_cells(&self) {
         for cells in self.cells.iter() {
-            cells.iter().for_each(|cell| {
+            cells.iter().filter(|cell| !cell.is_dead).for_each(|cell| {
                 draw_rectangle(
                     cell.pos.x as f32,
                     cell.pos.y as f32,
                     self.cell_size as f32,
                     self.cell_size as f32,
-                    if cell.is_dead { BLACK } else { WHITE },
+                    WHITE,
                 )
             });
         }
     }
 
     fn get_new_generation(&self) -> CellMatrix {
-        self.cells
-            .iter()
-            .enumerate()
-            .map(|(row_idx, row)| {
-                row.iter()
-                    .enumerate()
-                    .map(|(col_idx, col)| {
-                        let count = self.get_neighbors_count(row_idx, col_idx);
-                        let is_dead = match count {
-                            3 => false,
-                            2..=3 => false,
-                            _ => true,
-                        };
-                        Cell { is_dead, ..*col }
-                    })
-                    .collect()
-            })
-            .collect()
+        let mut new_gen: CellMatrix = vec![];
+
+        for (row_idx, row) in self.cells.iter().enumerate() {
+            let row = row
+                .iter()
+                .enumerate()
+                .map(|(col_idx, cell)| Cell {
+                    is_dead: Self::apply_cell_rules(
+                        self.get_neighbors_count(row_idx, col_idx),
+                        cell.is_dead,
+                    ),
+                    ..*cell
+                })
+                .collect();
+            new_gen.push(row);
+        }
+
+        new_gen
+    }
+
+    fn apply_cell_rules(neighbors_count: i32, is_dead: bool) -> bool {
+        match (neighbors_count, is_dead) {
+            (3, true) => false,
+            (2 | 3, false) => false,
+            _ => true,
+        }
     }
 
     fn get_neighbors_count(&self, row_idx: usize, col_idx: usize) -> i32 {
         let cells: &CellMatrix = &self.cells;
         let start_row = if row_idx == 0 { 0 } else { row_idx - 1 };
-        let end_row = if row_idx >= cells.len() - 1 {
-            cells.len()
-        } else {
-            row_idx + 2
-        };
+        let end_row = (row_idx + 2).min(cells.len());
 
-        cells[start_row..end_row]
-            .iter()
-            .enumerate()
-            .map(|(idx, _)| {
-                let actual_row_idx = start_row + idx;
-                let mut count = 0;
+        let mut count = 0;
 
-                count += self.cell_state_to_number(actual_row_idx, col_idx + 1);
-                count += match col_idx {
-                    0 => 0,
-                    _ => self.cell_state_to_number(actual_row_idx, col_idx - 1),
-                };
-                count += match actual_row_idx {
-                    idx if idx == row_idx => 0,
-                    _ => self.cell_state_to_number(actual_row_idx, col_idx),
-                };
+        for (idx, _) in cells[start_row..end_row].iter().enumerate() {
+            let actual_row_idx = start_row + idx;
+            if col_idx > 0 {
+                count += self.cell_state_to_number(actual_row_idx, col_idx - 1);
+            }
+            if actual_row_idx != row_idx {
+                count += self.cell_state_to_number(actual_row_idx, col_idx);
+            }
+            count += self.cell_state_to_number(actual_row_idx, col_idx + 1);
+        }
 
-                count
-            })
-            .sum()
+        count
     }
 
     fn cell_state_to_number(&self, row_idx: usize, col_idx: usize) -> i32 {
         self.cells
             .get(row_idx)
-            .and_then(|cells| cells.get(col_idx))
+            .and_then(|cells| cells.get(col_idx as usize))
             .map_or(0, |cell| if cell.is_dead { 0 } else { 1 })
     }
 
@@ -205,11 +202,13 @@ mod tests {
             }]]
         )
     }
+
     #[test]
     fn should_map_cell_state_to_1() {
         let game = Game::new(Screen::default(), |_, _| false);
         assert_eq!(game.cell_state_to_number(2, 2), 1);
     }
+
     #[test]
     fn should_map_cell_state_to_0() {
         let game = Game::new(Screen::default(), |_, _| true);
