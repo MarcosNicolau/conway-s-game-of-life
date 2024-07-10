@@ -51,8 +51,8 @@ impl Game {
             let cells: Vec<Cell> = (0..num_of_cols)
                 .map(|col_idx| Cell {
                     pos: Pos {
-                        x: (col_idx * self.cell_size as u32) as i32,
-                        y: (row * self.cell_size as u32) as i32,
+                        x: (col_idx * self.cell_size) as i32,
+                        y: (row * self.cell_size) as i32,
                     },
                     is_dead: match &seeder {
                         Some(fun) => fun(row, col_idx),
@@ -138,25 +138,25 @@ impl Game {
 
         for idx in 0..=num_of_rows {
             let y = (idx * self.cell_size) as f32;
-            draw_line(0.0, y, screen_width() as f32, y, 1.0, GRAY);
+            draw_line(0.0, y, screen_width(), y, 1.0, GRAY);
         }
 
         for idx in 0..=num_of_cols {
             let x = (idx * self.cell_size) as f32;
-            draw_line(x, 0.0, x, screen_height() as f32, 1.0, GRAY);
+            draw_line(x, 0.0, x, screen_height(), 1.0, GRAY);
         }
     }
 
     fn draw_config_bar(&mut self) {
-        widgets::Window::new(100, vec2(screen_width() + 140., 0.), vec2(500., 150.))
+        widgets::Window::new(100, vec2(screen_width() + 140., 0.), vec2(500., 180.))
             .movable(true)
             .label("Config")
-            .ui(&mut *root_ui(), |ui| {
+            .ui(&mut root_ui(), |ui| {
                 let range: Range<f32> = 0.0..100.0;
                 ui.slider(1, "speed in ms", range, &mut self.state.speed_in_ms);
 
                 if ui.button(
-                    vec2(0., 20.),
+                    vec2(0., 50.),
                     if self.state.is_paused {
                         "Start"
                     } else {
@@ -175,18 +175,18 @@ impl Game {
                         range,
                         &mut self.state.alive_percentage_factor,
                     );
-                    if ui.button(vec2(0., 50.), "Randomize") {
+                    if ui.button(vec2(0., 80.), "Randomize") {
                         self.restart(Some(get_random_seeder(
                             self.state.alive_percentage_factor as u32,
                         )));
                     }
                 }
 
-                if ui.button(vec2(0., 80.), "Restart") {
+                if ui.button(vec2(0., 110.), "Restart") {
                     self.restart(None);
                 }
 
-                if ui.button(vec2(0., 110.), "Exit ") {
+                if ui.button(vec2(0., 140.), "Exit ") {
                     exit(0);
                 }
             });
@@ -213,8 +213,8 @@ impl Game {
         let text_width = measure_text(text, None, font_size as u16, 1.).width;
         draw_text(
             text,
-            screen_width() as f32 / 2.0 - text_width / 2.0 + offset_x,
-            screen_height() as f32 / 2.0 - font_size / 2.0 + offset_y,
+            screen_width() / 2.0 - text_width / 2.0 + offset_x,
+            screen_height() / 2.0 - font_size / 2.0 + offset_y,
             font_size,
             WHITE,
         );
@@ -271,7 +271,7 @@ impl Game {
     fn cell_state_to_number(&self, row_idx: usize, col_idx: usize) -> i32 {
         self.cells
             .get(row_idx)
-            .and_then(|cells| cells.get(col_idx as usize))
+            .and_then(|cells| cells.get(col_idx))
             .map_or(0, |cell| if cell.is_dead { 0 } else { 1 })
     }
 }

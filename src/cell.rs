@@ -16,11 +16,7 @@ pub type CellMatrix = Vec<Vec<Cell>>;
 pub type Seeder = Box<dyn Fn(u32, u32) -> bool>;
 
 pub fn apply_cell_rules(neighbors_count: i32, is_dead: bool) -> bool {
-    match (neighbors_count, is_dead) {
-        (3, true) => false,
-        (2 | 3, false) => false,
-        _ => true,
-    }
+    !matches!((neighbors_count, is_dead), (3, true) | (2 | 3, false))
 }
 
 pub fn get_random_seeder(percentage: u32) -> Seeder {
