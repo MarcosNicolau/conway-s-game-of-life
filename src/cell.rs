@@ -36,7 +36,12 @@ pub type CellMatrix = Vec<Vec<Cell>>;
 pub type Seeder = Box<dyn Fn(u32, u32) -> bool>;
 
 pub fn apply_cell_rules(neighbors_count: i32, is_dead: bool) -> bool {
-    !matches!((neighbors_count, is_dead), (3, true) | (2 | 3, false))
+    #![allow(clippy::match_like_matches_macro)]
+    match (neighbors_count, is_dead) {
+        (3, true) => false,
+        (2 | 3, false) => false,
+        _ => true,
+    }
 }
 
 pub fn get_random_seeder(percentage: u32) -> Seeder {
