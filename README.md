@@ -14,3 +14,11 @@ The universe of the Game of Life is an infinite, two-dimensional orthogonal grid
 -   Any live cell with two or three live neighbours lives on to the next generation.
 -   Any live cell with more than three live neighbours dies, as if by overpopulation.
 -   Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+
+## How to play
+
+Follow this steps:
+
+1. Clone the repo: `git clone https://github.com/MarcosNicolau/conways-game-of-life.git`
+2. Run it with cargo: `cargo run`
+3. Enjoy it!
