@@ -153,14 +153,12 @@ impl Game {
                 let range: Range<f32> = 0.0..100.0;
                 ui.slider(1, "speed in ms", range, &mut self.state.speed_in_ms);
 
-                if ui.button(
-                    vec2(0., 50.),
-                    if self.state.is_paused {
-                        "Start"
-                    } else {
-                        "Pause"
-                    },
-                ) {
+                let pause_btn_label = match self.state.is_paused {
+                    true => "Start",
+                    _ => "Pause",
+                };
+
+                if ui.button(vec2(0., 50.), pause_btn_label) {
                     self.state.is_paused = !self.state.is_paused;
                     self.state.game_has_started = true;
                 }
