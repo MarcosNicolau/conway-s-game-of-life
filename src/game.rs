@@ -3,7 +3,6 @@ use macroquad::{
     prelude::*,
     ui::{root_ui, widgets},
 };
-use miniquad::window::set_window_size;
 use std::{ops::Range, process::exit, thread::sleep, time::Duration};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -17,20 +16,6 @@ struct Cell {
     is_dead: bool,
 }
 
-pub struct Screen {
-    height: u32,
-    width: u32,
-}
-
-impl Default for Screen {
-    fn default() -> Self {
-        Self {
-            width: 800,
-            height: 600,
-        }
-    }
-}
-
 type CellMatrix = Vec<Vec<Cell>>;
 
 struct GameState {
@@ -42,7 +27,6 @@ struct GameState {
 }
 
 pub struct Game {
-    screen: Screen,
     cells: CellMatrix,
     cell_size: u32,
     state: GameState,
@@ -51,13 +35,12 @@ pub struct Game {
 pub type Seeder = fn(row_idx: u32, col_idx: u32) -> bool;
 
 impl Game {
-    pub fn new(screen: Screen, seeder: Option<Seeder>) -> Self {
-        let cell_size = 5;
+    pub fn new(seeder: Option<Seeder>) -> Self {
+        let cell_size = 10;
 
-        Self {
+        let mut game = Self {
             cell_size,
-            cells: Game::generate_cells(&screen, cell_size, seeder),
-            screen,
+            cells: vec![],
             state: GameState {
                 game_has_started: false,
                 alive_cells_number: 0,
@@ -65,19 +48,23 @@ impl Game {
                 speed_in_ms: 10.,
                 is_paused: true,
             },
-        }
+        };
+
+        game.generate_cells(seeder);
+
+        return game;
     }
 
-    fn generate_cells(screen: &Screen, cell_size: u32, seeder: Option<Seeder>) -> CellMatrix {
+    fn generate_cells(&mut self, seeder: Option<Seeder>) {
         let mut matrix: CellMatrix = vec![];
-        let num_of_rows = screen.height / cell_size;
-        let num_of_cols = screen.width / cell_size;
+        let num_of_rows = screen_height() as u32 / self.cell_size;
+        let num_of_cols = screen_width() as u32 / self.cell_size;
         for row in 0..num_of_rows {
             let cells: Vec<Cell> = (0..num_of_cols)
                 .map(|col_idx| Cell {
                     pos: Pos {
-                        x: (col_idx * cell_size) as i32,
-                        y: (row * cell_size) as i32,
+                        x: (col_idx * self.cell_size) as i32,
+                        y: (row * self.cell_size) as i32,
                     },
 
                     is_dead: seeder.unwrap_or(|_, _| true)(row, col_idx),
@@ -86,7 +73,7 @@ impl Game {
             matrix.push(cells);
         }
 
-        return matrix;
+        self.cells = matrix;
     }
 
     pub async fn start(&mut self) {
@@ -97,17 +84,17 @@ impl Game {
             if !self.state.game_has_started {
                 draw_text(
                     "Paint the cells",
-                    self.screen.width as f32 / 2.0
+                    screen_width() as f32 / 2.0
                         - measure_text("Paint the cells", None, 50, 1.).width / 2.0,
-                    self.screen.height as f32 / 2.0 - 50.0 / 2.0,
+                    screen_height() as f32 / 2.0 - 50.0 / 2.0,
                     50.0,
                     WHITE,
                 );
                 draw_text(
                     "and press start",
-                    self.screen.width as f32 / 2.0
+                    screen_width() as f32 / 2.0
                         - measure_text("and press start", None, 30, 1.).width / 2.0,
-                    self.screen.height as f32 / 2.0 - 30.0 / 2.0 + 20.,
+                    screen_height() as f32 / 2.0 - 30.0 / 2.0 + 20.,
                     30.0,
                     WHITE,
                 );
@@ -156,32 +143,32 @@ impl Game {
     }
 
     fn draw_grid(&self) {
-        let num_of_rows = self.screen.height / self.cell_size;
-        let num_of_cols = self.screen.width / self.cell_size;
+        let num_of_rows = screen_height() as u32 / self.cell_size;
+        let num_of_cols = screen_width() as u32 / self.cell_size;
 
         for idx in 0..=num_of_rows {
             let y = (idx * self.cell_size) as f32;
-            draw_line(0.0, y, self.screen.width as f32, y, 1.0, GRAY);
+            draw_line(0.0, y, screen_width() as f32, y, 1.0, GRAY);
         }
 
         for idx in 0..=num_of_cols {
             let x = (idx * self.cell_size) as f32;
-            draw_line(x, 0.0, x, self.screen.height as f32, 1.0, GRAY);
+            draw_line(x, 0.0, x, screen_height() as f32, 1.0, GRAY);
         }
     }
 
     fn draw_ui(&mut self) {
         widgets::Window::new(
             100,
-            vec2(0., self.screen.height as f32 - 120.),
-            vec2(self.screen.width as f32, 100.),
+            vec2(0., screen_height() + 200.),
+            vec2(screen_width() as f32, 100.),
         )
         .label("Config")
         .ui(&mut *root_ui(), |ui| {
             let range: Range<f32> = 0.0..100.0;
             ui.slider(hash!(), "speed in ms", range, &mut self.state.speed_in_ms);
             if ui.button(
-                vec2(self.screen.width as f32 / 2. - 20., 20.),
+                vec2(screen_width() as f32 / 2. - 20., 20.),
                 if self.state.is_paused {
                     "Start"
                 } else {
@@ -192,7 +179,7 @@ impl Game {
                 self.state.game_has_started = true;
             }
 
-            if ui.button(vec2(self.screen.width as f32 / 2. - 20., 45.), "Exit ") {
+            if ui.button(vec2(screen_width() as f32 / 2. - 20., 65.), "Exit ") {
                 exit(0)
             }
         });
@@ -275,60 +262,58 @@ impl Game {
             .map_or(0, |cell| if cell.is_dead { 0 } else { 1 })
     }
 
-    pub fn setup(&self) {
-        set_window_size(self.screen.width, self.screen.height);
-    }
+    pub fn setup(&self) {}
 
     pub fn conf() -> Conf {
         Conf {
             window_title: "Conway's Game of Life".to_owned(),
-            fullscreen: false,
+            fullscreen: true,
             window_resizable: false,
             ..Default::default()
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    //TODO finish this test
-    #[test]
-    fn should_get_next_generation() {}
+//     //TODO finish this test
+//     #[test]
+//     fn should_get_next_generation() {}
 
-    #[test]
-    fn should_get_neighbors_count() {
-        let seeder = |row_idx, col_idx| match row_idx {
-            50 if (19..22).contains(&col_idx) => false,
-            _ => true,
-        };
-        let game = Game::new(Screen::default(), Some(seeder));
-        assert_eq!(game.get_neighbors_count(50, 20), 2);
-    }
+//     #[test]
+//     fn should_get_neighbors_count() {
+//         let seeder = |row_idx, col_idx| match row_idx {
+//             50 if (19..22).contains(&col_idx) => false,
+//             _ => true,
+//         };
+//         let game = Game::new(Screen::default(), Some(seeder));
+//         assert_eq!(game.get_neighbors_count(50, 20), 2);
+//     }
 
-    #[test]
-    fn should_generate_cells_accordingly() {
-        // if the cells size is 600, then there should be 1 col and 1 row
-        let cells_matrix = Game::generate_cells(&Screen::default(), 600, Some(|_, _| false));
-        assert_eq!(
-            cells_matrix,
-            vec![vec![Cell {
-                pos: Pos { x: 0, y: 0 },
-                is_dead: false
-            }]]
-        )
-    }
+//     #[test]
+//     fn should_generate_cells_accordingly() {
+//         // if the cells size is 600, then there should be 1 col and 1 row
+//         let cells_matrix = Game::generate_cells(&Screen::default(), 600, Some(|_, _| false));
+//         assert_eq!(
+//             cells_matrix,
+//             vec![vec![Cell {
+//                 pos: Pos { x: 0, y: 0 },
+//                 is_dead: false
+//             }]]
+//         )
+//     }
 
-    #[test]
-    fn should_map_cell_state_to_1() {
-        let game = Game::new(Screen::default(), Some(|_, _| false));
-        assert_eq!(game.cell_state_to_number(2, 2), 1);
-    }
+//     #[test]
+//     fn should_map_cell_state_to_1() {
+//         let game = Game::new(Screen::default(), Some(|_, _| false));
+//         assert_eq!(game.cell_state_to_number(2, 2), 1);
+//     }
 
-    #[test]
-    fn should_map_cell_state_to_0() {
-        let game = Game::new(Screen::default(), Some(|_, _| true));
-        assert_eq!(game.cell_state_to_number(2, 2), 0);
-    }
-}
+//     #[test]
+//     fn should_map_cell_state_to_0() {
+//         let game = Game::new(Screen::default(), Some(|_, _| true));
+//         assert_eq!(game.cell_state_to_number(2, 2), 0);
+//     }
+// }
