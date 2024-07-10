@@ -1,4 +1,4 @@
-use crate::cell;
+use crate::cell::*;
 use macroquad::prelude::*;
 use macroquad::ui::{root_ui, widgets};
 use std::process::exit;
@@ -11,16 +11,17 @@ struct GameState {
     speed_in_ms: f32,
     gen_number: i32,
     alive_cells_number: i32,
+    alive_percentage_factor: f32,
 }
 
 pub struct Game {
-    cells: cell::CellMatrix,
+    cells: CellMatrix,
     cell_size: u32,
     state: GameState,
 }
 
 impl Game {
-    pub fn new(seeder: Option<cell::Seeder>) -> Self {
+    pub fn new(seeder: Option<Seeder>) -> Self {
         let cell_size = 10;
 
         let mut game = Self {
@@ -32,6 +33,7 @@ impl Game {
                 gen_number: 0,
                 speed_in_ms: 10.,
                 is_paused: true,
+                alive_percentage_factor: 80.,
             },
         };
 
@@ -40,19 +42,22 @@ impl Game {
         game
     }
 
-    fn generate_cells(&mut self, seeder: Option<cell::Seeder>) {
-        let mut matrix: cell::CellMatrix = vec![];
+    fn generate_cells(&mut self, seeder: Option<Seeder>) {
+        let mut matrix: CellMatrix = vec![];
         let num_of_rows = screen_height() as u32 / self.cell_size;
         let num_of_cols = screen_width() as u32 / self.cell_size;
 
         for row in 0..num_of_rows {
-            let cells: Vec<cell::Cell> = (0..num_of_cols)
-                .map(|col_idx| cell::Cell {
-                    pos: cell::Pos {
+            let cells: Vec<Cell> = (0..num_of_cols)
+                .map(|col_idx| Cell {
+                    pos: Pos {
                         x: (col_idx * self.cell_size as u32) as i32,
                         y: (row * self.cell_size as u32) as i32,
                     },
-                    is_dead: seeder.unwrap_or(|_, _| true)(row, col_idx),
+                    is_dead: match &seeder {
+                        Some(fun) => fun(row, col_idx),
+                        _ => true,
+                    },
                 })
                 .collect();
             matrix.push(cells);
@@ -83,12 +88,12 @@ impl Game {
         }
     }
 
-    fn restart(&mut self) {
+    fn restart(&mut self, seeder: Option<Seeder>) {
         self.state.game_has_started = false;
         self.state.alive_cells_number = 0;
         self.state.is_paused = true;
         self.state.gen_number = 0;
-        self.generate_cells(None);
+        self.generate_cells(seeder);
     }
 
     fn draw_paint_cells(&mut self) {
@@ -143,36 +148,48 @@ impl Game {
     }
 
     fn draw_config_bar(&mut self) {
-        widgets::Window::new(
-            100,
-            vec2(0., screen_height() as f32 + 200.),
-            vec2(screen_width() as f32, 100.),
-        )
-        .label("Config")
-        .ui(&mut *root_ui(), |ui| {
-            let range: Range<f32> = 0.0..100.0;
-            ui.slider(1, "speed in ms", range, &mut self.state.speed_in_ms);
+        widgets::Window::new(100, vec2(screen_width() + 140., 0.), vec2(500., 150.))
+            .movable(true)
+            .label("Config")
+            .ui(&mut *root_ui(), |ui| {
+                let range: Range<f32> = 0.0..100.0;
+                ui.slider(1, "speed in ms", range, &mut self.state.speed_in_ms);
 
-            if ui.button(
-                vec2(screen_width() as f32 / 2. - 20., 20.),
-                if self.state.is_paused {
-                    "Start"
-                } else {
-                    "Pause"
-                },
-            ) {
-                self.state.is_paused = !self.state.is_paused;
-                self.state.game_has_started = true;
-            }
+                if ui.button(
+                    vec2(0., 20.),
+                    if self.state.is_paused {
+                        "Start"
+                    } else {
+                        "Pause"
+                    },
+                ) {
+                    self.state.is_paused = !self.state.is_paused;
+                    self.state.game_has_started = true;
+                }
 
-            if ui.button(vec2(screen_width() as f32 / 2. - 20., 45.), "Restart") {
-                self.restart();
-            }
+                if !self.state.game_has_started {
+                    let range: Range<f32> = 0.0..100.0;
+                    ui.slider(
+                        3,
+                        "random factor",
+                        range,
+                        &mut self.state.alive_percentage_factor,
+                    );
+                    if ui.button(vec2(0., 50.), "Randomize") {
+                        self.restart(Some(get_random_seeder(
+                            self.state.alive_percentage_factor as u32,
+                        )));
+                    }
+                }
 
-            if ui.button(vec2(screen_width() as f32 / 2. - 20., 65.), "Exit ") {
-                exit(0);
-            }
-        });
+                if ui.button(vec2(0., 80.), "Restart") {
+                    self.restart(None);
+                }
+
+                if ui.button(vec2(0., 110.), "Exit ") {
+                    exit(0);
+                }
+            });
     }
 
     fn draw_gen_state(&self) {
@@ -203,23 +220,21 @@ impl Game {
         );
     }
 
-    fn get_new_generation(&mut self) -> cell::CellMatrix {
-        let mut new_gen: cell::CellMatrix = vec![];
+    fn get_new_generation(&mut self) -> CellMatrix {
+        let mut new_gen: CellMatrix = vec![];
         let mut alive_cells_count = 0;
 
         for (row_idx, row) in self.cells.iter().enumerate() {
-            let new_row: Vec<cell::Cell> = row
+            let new_row: Vec<Cell> = row
                 .iter()
                 .enumerate()
                 .map(|(col_idx, cell)| {
-                    let is_dead = cell::apply_cell_rules(
-                        self.get_neighbors_count(row_idx, col_idx),
-                        cell.is_dead,
-                    );
+                    let is_dead =
+                        apply_cell_rules(self.get_neighbors_count(row_idx, col_idx), cell.is_dead);
                     if !is_dead {
                         alive_cells_count += 1;
                     }
-                    cell::Cell { is_dead, ..*cell }
+                    Cell { is_dead, ..*cell }
                 })
                 .collect();
 
