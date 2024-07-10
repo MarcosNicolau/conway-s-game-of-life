@@ -1,15 +1,38 @@
 use rand::{thread_rng, Rng};
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct Pos {
-    pub x: i32,
-    pub y: i32,
+#[derive(Clone, PartialEq, Debug)]
+pub enum Cell {
+    Alive,
+    Dead,
 }
 
-#[derive(Clone, PartialEq, Debug)]
-pub struct Cell {
-    pub pos: Pos,
-    pub is_dead: bool,
+impl Cell {
+    pub fn is_alive(&self) -> bool {
+        match self {
+            Cell::Alive => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_dead(&self) -> bool {
+        !self.is_alive()
+    }
+
+    pub fn swap_state(&mut self) {
+        if self.is_alive() {
+            *self = Cell::Dead;
+        } else {
+            *self = Cell::Alive;
+        }
+    }
+
+    pub fn create(is_dead: bool) -> Cell {
+        if is_dead {
+            Cell::Dead
+        } else {
+            Cell::Alive
+        }
+    }
 }
 
 pub type CellMatrix = Vec<Vec<Cell>>;

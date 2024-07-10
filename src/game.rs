@@ -49,15 +49,9 @@ impl Game {
 
         for row in 0..num_of_rows {
             let cells: Vec<Cell> = (0..num_of_cols)
-                .map(|col_idx| Cell {
-                    pos: Pos {
-                        x: (col_idx * self.cell_size) as i32,
-                        y: (row * self.cell_size) as i32,
-                    },
-                    is_dead: match &seeder {
-                        Some(fun) => fun(row, col_idx),
-                        _ => true,
-                    },
+                .map(|col_idx| match &seeder {
+                    Some(fun) => Cell::create(fun(row, col_idx)),
+                    _ => Cell::create(true),
                 })
                 .collect();
             matrix.push(cells);
@@ -114,21 +108,25 @@ impl Game {
             .get_mut(cell_y)
             .and_then(|row| row.get_mut(cell_x))
         {
-            cell.is_dead = !cell.is_dead;
+            cell.swap_state();
         }
     }
 
     fn draw_cells(&self) {
-        for cells in self.cells.iter() {
-            cells.iter().filter(|cell| !cell.is_dead).for_each(|cell| {
-                draw_rectangle(
-                    cell.pos.x as f32,
-                    cell.pos.y as f32,
-                    self.cell_size as f32,
-                    self.cell_size as f32,
-                    WHITE,
-                )
-            });
+        for (row_idx, cells) in self.cells.iter().enumerate() {
+            cells
+                .iter()
+                .enumerate()
+                .filter(|(_, cell)| cell.is_dead())
+                .for_each(|(col_idx, _)| {
+                    draw_rectangle(
+                        (col_idx as u32 * self.cell_size) as f32,
+                        (row_idx as u32 * self.cell_size) as f32,
+                        self.cell_size as f32,
+                        self.cell_size as f32,
+                        WHITE,
+                    )
+                });
         }
     }
 
@@ -229,12 +227,14 @@ impl Game {
                 .iter()
                 .enumerate()
                 .map(|(col_idx, cell)| {
-                    let is_dead =
-                        apply_cell_rules(self.get_neighbors_count(row_idx, col_idx), cell.is_dead);
+                    let is_dead = apply_cell_rules(
+                        self.get_neighbors_count(row_idx, col_idx),
+                        cell.is_dead(),
+                    );
                     if !is_dead {
                         alive_cells_count += 1;
                     }
-                    Cell { is_dead, ..*cell }
+                    Cell::create(is_dead)
                 })
                 .collect();
 
@@ -272,6 +272,6 @@ impl Game {
         self.cells
             .get(row_idx)
             .and_then(|cells| cells.get(col_idx))
-            .map_or(0, |cell| if cell.is_dead { 0 } else { 1 })
+            .map_or(0, |cell| if cell.is_dead() { 0 } else { 1 })
     }
 }
