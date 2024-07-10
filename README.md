@@ -22,3 +22,9 @@ Follow this steps:
 1. Clone the repo: `git clone https://github.com/MarcosNicolau/conways-game-of-life.git`
 2. Run it with cargo: `cargo run`
 3. Enjoy it!
+
+## Gameplay
+
+https://github.com/MarcosNicolau/conways-game-of-life/assets/76252340/7af97424-f0da-4f3e-8a2d-6ff0f7052718
+
+
