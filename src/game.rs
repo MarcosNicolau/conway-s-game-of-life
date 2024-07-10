@@ -111,6 +111,14 @@ impl Game {
         }
     }
 
+    fn restart(&mut self) {
+        self.state.game_has_started = false;
+        self.state.alive_cells_number = 0;
+        self.state.is_paused = true;
+        self.state.gen_number = 0;
+        self.generate_cells(None);
+    }
+
     fn show_paint_cells(&mut self) {
         if is_mouse_button_pressed(MouseButton::Left) {
             let mouse_pos = mouse_position();
@@ -177,6 +185,10 @@ impl Game {
             ) {
                 self.state.is_paused = !self.state.is_paused;
                 self.state.game_has_started = true;
+            }
+
+            if ui.button(vec2(screen_width() as f32 / 2. - 20., 45.), "Restart ") {
+                self.restart();
             }
 
             if ui.button(vec2(screen_width() as f32 / 2. - 20., 65.), "Exit ") {
