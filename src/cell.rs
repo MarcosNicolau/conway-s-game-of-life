@@ -8,10 +8,7 @@ pub enum Cell {
 
 impl Cell {
     pub fn is_alive(&self) -> bool {
-        match self {
-            Cell::Alive => true,
-            _ => false,
-        }
+        matches!(self, Cell::Alive)
     }
 
     pub fn is_dead(&self) -> bool {
